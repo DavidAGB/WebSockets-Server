@@ -84,6 +84,20 @@ In a Laravel project you can read the credentials straight from its `.env`:
 }
 ```
 
+`apps.json` is a file you write yourself; there is a starting point in `examples/apps.json`.
+Keep it anywhere the server can read it (next to the binary is fine) and pass its path with
+`-config`. It holds secrets, so restrict its permissions (`chmod 600 apps.json`) and keep it
+out of version control.
+
+| Field | What to put |
+|---|---|
+| `id`, `key`, `secret` | The same three values that application has as `PUSHER_APP_ID`, `PUSHER_APP_KEY` and `PUSHER_APP_SECRET`. You choose them; they only have to match on both sides. |
+| `name` | A label for the panel and the log. Optional. |
+| `origins` | The sites allowed to connect to this app. Optional; without it any origin is accepted. |
+
+With a single application you do not need this file: `-env` or the environment variables are
+enough.
+
 Applications are fully isolated: a channel named `orders` in one app is unrelated to `orders`
 in another, and one app's secret cannot publish into another. The panel gets an app selector.
 
