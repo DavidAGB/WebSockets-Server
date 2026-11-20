@@ -1,0 +1,122 @@
+/*
+ * Panel styles. Compiled with `npm run css` into web/lib/panel.css, which the server embeds in the binary.
+ * Only the utilities used by web/index.html and web/lib/panel.js are generated.
+ */
+@import "tailwindcss" source(none);
+@source "../web/index.html";
+@source "../web/lib/panel.js";
+
+/* Colors point at variables that change with the theme, so utilities work in light and dark */
+@theme inline {
+    --color-plane: var(--plane);
+    --color-surface: var(--surface);
+    --color-inset: var(--inset);
+    --color-ink: var(--ink);
+    --color-ink-2: var(--ink-2);
+    --color-muted: var(--muted);
+    --color-grid: var(--grid);
+    --color-axis: var(--axis);
+    --color-hairline: var(--hairline);
+    --color-series-1: var(--series-1);
+    --color-series-2: var(--series-2);
+    --color-good: var(--good);
+    --color-good-ink: var(--good-ink);
+    --color-critical: var(--critical);
+
+    --font-display: "RH Display", "RH Text", system-ui, sans-serif;
+    --font-sans: "RH Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "SC Pro", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+/* Red Hat Display / Red Hat Text and Source Code Pro: SIL OFL 1.1, served by the server itself */
+@font-face { font-family: "RH Display"; src: url("/lib/fonts/RedHatDisplay-SemiBold.otf") format("opentype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "RH Display"; src: url("/lib/fonts/RedHatDisplay-Bold.otf") format("opentype"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "RH Text"; src: url("/lib/fonts/RedHatText-Regular.otf") format("opentype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "RH Text"; src: url("/lib/fonts/RedHatText-Medium.otf") format("opentype"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "SC Pro"; src: url("/lib/fonts/SourceCodePro-Regular.otf") format("opentype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "SC Pro"; src: url("/lib/fonts/SourceCodePro-Medium.otf") format("opentype"); font-weight: 500; font-display: swap; }
+
+@layer base {
+    :root {
+        color-scheme: light;
+        --plane: #f9f9f7; --surface: #fcfcfb; --inset: #f1f0eb;
+        --ink: #0b0b0b; --ink-2: #52514e; --muted: #7b7973;
+        --grid: #e1e0d9; --axis: #c3c2b7; --hairline: rgba(11, 11, 11, .10);
+        --series-1: #2a78d6; --series-2: #eb6834;
+        --good: #0ca30c; --good-ink: #006300; --critical: #d03b3b;
+        --dots: rgba(11, 11, 11, .07);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            color-scheme: dark;
+            --plane: #0d0d0d; --surface: #1a1a19; --inset: #242423;
+            --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+            --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255, 255, 255, .10);
+            --series-1: #3987e5; --series-2: #d95926;
+            --good-ink: #0ca30c; --critical: #e66767;
+            --dots: rgba(255, 255, 255, .055);
+        }
+    }
+
+    :root[data-theme="dark"] {
+        color-scheme: dark;
+        --plane: #0d0d0d; --surface: #1a1a19; --inset: #242423;
+        --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+        --grid: #2c2c2a; --axis: #383835; --hairline: rgba(255, 255, 255, .10);
+        --series-1: #3987e5; --series-2: #d95926;
+        --good-ink: #0ca30c; --critical: #e66767;
+        --dots: rgba(255, 255, 255, .055);
+    }
+
+    body {
+        background: var(--plane) radial-gradient(var(--dots) 1px, transparent 1px) 0 0 / 22px 22px;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    [v-cloak] { display: none; }
+    :focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; border-radius: 4px; }
+    summary::-webkit-details-marker { display: none; }
+}
+
+@layer components {
+    .card { @apply min-w-0 rounded-xl border border-hairline bg-surface; }
+    .label { @apply font-mono text-[10.5px] leading-tight font-medium tracking-[.09em] text-muted uppercase; }
+    .panel-title { @apply font-display text-[15px] font-semibold; }
+
+    .btn { @apply cursor-pointer rounded-lg border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium whitespace-nowrap hover:bg-inset disabled:cursor-not-allowed disabled:opacity-45; }
+    .btn-primary { @apply border-ink bg-ink px-3.5 py-2 text-surface hover:bg-ink; }
+    .seg { @apply inline-flex flex-none overflow-hidden rounded-lg border border-hairline; }
+    .seg-btn { @apply cursor-pointer border-l border-hairline px-2.5 py-1 text-xs whitespace-nowrap text-ink-2 first:border-l-0 hover:bg-inset aria-pressed:bg-ink aria-pressed:text-surface; }
+    .field { @apply w-full rounded-lg border border-transparent bg-inset px-2.5 py-1.5 text-[13px] placeholder:text-muted focus:outline-2 focus:-outline-offset-1 focus:outline-series-1; }
+    .tag { @apply rounded-[5px] border border-hairline px-1.5 py-px font-mono text-[11px] font-medium whitespace-nowrap text-ink-2; }
+    .chip { @apply rounded-md border border-hairline bg-surface px-2 py-0.5 text-xs; }
+
+    .th { @apply sticky top-0 z-10 border-b border-grid bg-surface px-4 py-2 text-left font-mono text-[10.5px] leading-tight font-medium tracking-[.09em] whitespace-nowrap text-muted uppercase; }
+    .td { @apply border-b border-grid px-4 py-2 align-middle; }
+    .scroll-thin { scrollbar-width: thin; }
+    tbody tr:last-child > .td { border-bottom-width: 0; }
+
+    /* Charts: the series is the only colored mark; grid and axes stay in the background */
+    .chart svg { display: block; outline-offset: -2px; touch-action: none; }
+    .chart .gridline { stroke: var(--grid); stroke-width: 1; }
+    .chart .baseline { stroke: var(--axis); stroke-width: 1; }
+    .chart text { font: 400 10.5px var(--font-mono); fill: var(--muted); }
+    .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .chart .area { opacity: .1; }
+    .chart .dot { stroke: var(--surface); stroke-width: 2; }
+    .chart .cross { stroke: var(--axis); stroke-width: 1; }
+
+    /* Motion */
+    .rise { animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+    .fresh { animation: flash 1.6s ease-out; }
+    .beacon-on::after { content: ""; position: absolute; inset: -4px; border-radius: 9999px; border: 1.5px solid var(--good); opacity: 0; animation: ping-soft 2s ease-out infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .rise, .fresh, .beacon-on::after { animation: none; }
+    }
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes flash { from { background: color-mix(in srgb, var(--series-1) 16%, transparent); } }
+@keyframes ping-soft { 0% { transform: scale(.5); opacity: .7; } 80%, 100% { transform: scale(1.5); opacity: 0; } }

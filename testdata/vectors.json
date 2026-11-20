@@ -1,0 +1,17 @@
+{
+    "comment": "Generated with pusher-php-server, the library Laravel signs with",
+    "key": "test-key",
+    "secret": "test-secret",
+    "appId": "42",
+    "timestamp": 1795200000,
+    "method": "POST",
+    "path": "/apps/42/events",
+    "body": "{\"name\":\"App\\\\Events\\\\OrderPaid\",\"data\":\"{\\\"id\\\":7}\",\"channels\":[\"private-orders.1\"]}",
+    "query": "auth_key=test-key&auth_signature=c294e549ee1617fdbddfbb66b5e9011d95babeec0e108c1d1d5dd7b431c22619&auth_timestamp=1795200000&auth_version=1.0&body_md5=f6bbf071c536f1ddf01ce201fce7c367",
+    "socketId": "123.456",
+    "channel": "private-orders.1",
+    "auth": "test-key:ef49c17e18d73de1124084cb5ae11972aefb2d7533722017f13866dba64bee9e",
+    "presenceChannel": "presence-chat",
+    "channelData": "{\"user_id\":\"u-7\",\"user_info\":{\"id\":\"u-7\",\"name\":\"Zo\\u00eb\"}}",
+    "presenceAuth": "test-key:4ad1cbcb2569a784b1f5b323dfd04a171c250cd2ec2432163f8820991825060d"
+}

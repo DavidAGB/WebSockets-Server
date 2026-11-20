@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WebSockets Server · Panel</title>
+<!-- Tailwind CSS compiled from tailwind/panel.css with `npm run css` -->
+<link rel="stylesheet" href="/lib/panel.css">
+</head>
+<body class="m-0 font-sans text-sm leading-normal text-ink">
+<main id="app" v-cloak class="mx-auto max-w-[1320px] px-4 pt-5 pb-14 sm:px-6">
+    <header class="flex flex-wrap items-center gap-x-4 gap-y-3 pb-5">
+        <div class="mr-auto flex min-w-0 items-center gap-3">
+            <svg class="flex-none" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+                <rect width="34" height="34" rx="9" fill="var(--ink)"/>
+                <circle cx="12" cy="22" r="2.6" fill="var(--surface)"/>
+                <path d="M12 14.5a7.5 7.5 0 0 1 7.5 7.5M12 8.5A13.5 13.5 0 0 1 25.5 22" fill="none" stroke="var(--surface)" stroke-width="2.4" stroke-linecap="round"/>
+            </svg>
+            <div class="min-w-0">
+                <h1 class="font-display text-xl leading-tight font-bold tracking-tight">WebSockets Server</h1>
+                <span class="font-mono text-xs text-muted">{{ stats.addr || '—' }}<template v-if="stats.apps.length === 1"> · {{ stats.app.name }}</template></span>
+            </div>
+        </div>
+
+        <label v-if="stats.apps.length > 1" class="flex items-center gap-2">
+            <span class="label">App</span>
+            <select class="field w-auto cursor-pointer py-1.5 pr-8 font-medium" v-model="appId" aria-label="Application">
+                <option v-for="a in stats.apps" :key="a.id" :value="a.id">{{ a.name }} · {{ full(a.connections) }}</option>
+            </select>
+        </label>
+
+        <span class="order-last inline-flex items-center gap-2 rounded-full border border-hairline bg-surface py-1.5 pr-3 pl-2.5 font-medium whitespace-nowrap sm:order-none" role="status">
+            <i class="relative size-[9px] rounded-full" :class="online ? 'bg-good beacon-on' : 'bg-critical'"></i>{{ online ? 'Online' : 'No response' }}
+            <small v-if="online" class="font-mono text-xs font-normal text-muted">{{ latency }} ms</small>
+            <small v-else-if="lastSeen" class="font-mono text-xs font-normal text-muted">for {{ offlineFor }}</small>
+        </span>
+
+        <dl class="hidden gap-5 lg:flex">
+            <div class="flex flex-col gap-0.5"><dt class="label">Uptime</dt><dd class="font-mono text-[13px] font-medium">{{ uptime }}</dd></div>
+            <div class="flex flex-col gap-0.5"><dt class="label">Runtime</dt><dd class="font-mono text-[13px] font-medium">{{ stats.runtime.goVersion || '—' }}</dd></div>
+        </dl>
+
+        <button class="grid size-[34px] flex-none cursor-pointer place-items-center rounded-[9px] border border-hairline bg-surface hover:bg-inset" @click="toggleTheme" :title="dark ? 'Switch to light theme' : 'Switch to dark theme'" :aria-label="dark ? 'Switch to light theme' : 'Switch to dark theme'">
+            <svg v-if="dark" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+            <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M13.5 9.8A6 6 0 0 1 6.2 2.5a6 6 0 1 0 7.3 7.3z"/></svg>
+        </button>
+    </header>
+
+    <div class="transition-opacity duration-300" :class="{ 'opacity-55': !online && lastSeen }">
+        <!-- Charts -->
+        <section class="mb-3.5 grid gap-3.5 lg:grid-cols-5">
+            <article class="card rise flex flex-col px-4 pt-4 pb-2.5 lg:col-span-3" style="--i: 0">
+                <div class="flex flex-wrap items-start gap-x-4 gap-y-2 sm:min-h-[76px]">
+                    <div class="mr-auto min-w-0">
+                        <div class="label">Active connections</div>
+                        <div class="mt-1.5 font-display text-[44px] leading-none font-bold tracking-[-.03em] sm:text-[56px]">{{ full(stats.connections) }}</div>
+                    </div>
+                    <dl class="hidden gap-5 pt-0.5 sm:flex">
+                        <div class="text-right"><dt class="label">Peak</dt><dd class="mt-0.5 font-display text-base font-semibold">{{ compact(stats.peakConnections) }}</dd></div>
+                        <div class="text-right"><dt class="label">Since start</dt><dd class="mt-0.5 font-display text-base font-semibold">{{ compact(stats.totalConnections) }}</dd></div>
+                    </dl>
+                    <div class="seg" role="group" aria-label="Connections view">
+                        <button class="seg-btn" :aria-pressed="String(!tables.connections)" @click="tables.connections = false">Chart</button>
+                        <button class="seg-btn" :aria-pressed="String(tables.connections)" @click="tables.connections = true">Table</button>
+                    </div>
+                </div>
+                <ts-chart :values="stats.history.connections" :end="historyEnd" color="var(--series-1)" name="connections" bucket="last" :height="176" :table="tables.connections"></ts-chart>
+            </article>
+
+            <article class="card rise flex flex-col px-4 pt-4 pb-2.5 lg:col-span-2" style="--i: 1">
+                <div class="flex flex-wrap items-start gap-x-4 gap-y-2 sm:min-h-[76px]">
+                    <div class="mr-auto min-w-0">
+                        <div class="label">Messages delivered per second</div>
+                        <div class="mt-1.5 font-display text-[34px] leading-none font-bold tracking-[-.02em] whitespace-nowrap">{{ compact(rateNow) }}<small class="ml-2 hidden font-sans text-xs font-normal tracking-normal text-muted sm:inline">10 s average</small></div>
+                    </div>
+                    <div class="seg" role="group" aria-label="Messages view">
+                        <button class="seg-btn" :aria-pressed="String(!tables.delivered)" @click="tables.delivered = false">Chart</button>
+                        <button class="seg-btn" :aria-pressed="String(tables.delivered)" @click="tables.delivered = true">Table</button>
+                    </div>
+                </div>
+                <ts-chart :values="stats.history.delivered" :end="historyEnd" color="var(--series-2)" name="messages" bucket="sum" :height="176" :table="tables.delivered"></ts-chart>
+            </article>
+        </section>
+
+        <!-- Indicators -->
+        <section class="mb-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-5">
+            <article class="card rise px-4 py-3.5" style="--i: 2">
+                <div class="label">Active channels</div>
+                <div class="mt-2 mb-1 font-display text-[28px] leading-tight font-bold tracking-[-.02em]">{{ full(stats.channels.length) }}</div>
+                <div class="min-h-[17px] text-xs text-ink-2">{{ channelMix }}</div>
+            </article>
+            <article class="card rise px-4 py-3.5" style="--i: 3">
+                <div class="label">Events published</div>
+                <div class="mt-2 mb-1 font-display text-[28px] leading-tight font-bold tracking-[-.02em]">{{ compact(stats.published) }}</div>
+                <div class="min-h-[17px] text-xs text-ink-2"><b class="font-medium text-ink">{{ full(publishedLastMinute) }}</b> in the last minute</div>
+            </article>
+            <article class="card rise px-4 py-3.5" style="--i: 4">
+                <div class="label">Messages delivered</div>
+                <div class="mt-2 mb-1 font-display text-[28px] leading-tight font-bold tracking-[-.02em]">{{ compact(stats.delivered) }}</div>
+                <div class="min-h-[17px] text-xs text-ink-2"><b class="font-medium text-ink">{{ fanout }}</b> per event, on average</div>
+            </article>
+            <article class="card rise px-4 py-3.5" style="--i: 5">
+                <div class="label">Rejections</div>
+                <div class="mt-2 mb-1 font-display text-[28px] leading-tight font-bold tracking-[-.02em]">{{ full(rejections) }}</div>
+                <div class="min-h-[17px] text-xs text-ink-2">
+                    <span v-if="!rejections" class="inline-flex items-center gap-1.5 font-medium"><svg class="flex-none text-good-ink" width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6.8l2.6 2.6 5.4-5.8"/></svg>No incidents</span>
+                    <span v-else class="inline-flex items-start gap-1.5 font-medium" :title="rejectionDetail"><svg class="mt-0.5 flex-none text-critical" width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 1.8l5 8.9h-10zM6.5 5.3v2.6M6.5 9.3v.1"/></svg>{{ rejectionDetail }}</span>
+                </div>
+            </article>
+            <article class="card rise col-span-2 px-4 py-3.5 lg:col-span-1" style="--i: 6">
+                <div class="label">Memory in use</div>
+                <div class="mt-2 mb-1 font-display text-[28px] leading-tight font-bold tracking-[-.02em]">{{ memory }}</div>
+                <div class="min-h-[17px] text-xs text-ink-2"><b class="font-medium text-ink">{{ full(stats.runtime.goroutines) }}</b> goroutines</div>
+            </article>
+        </section>
+
+        <!-- Channels -->
+        <section class="mb-3.5">
+            <article class="card rise" style="--i: 7">
+                <div class="flex flex-wrap items-center gap-2.5 px-4 pt-3.5 pb-2.5">
+                    <h2 class="panel-title mr-auto">Channels <small class="ml-1.5 font-mono text-xs font-normal text-muted">{{ visibleChannels.length }}</small></h2>
+                    <div class="seg max-w-full overflow-x-auto" role="group" aria-label="Channel type">
+                        <button v-for="t in channelTypes" :key="t.id" class="seg-btn" :aria-pressed="String(channelType === t.id)" @click="channelType = t.id">{{ t.label }}</button>
+                    </div>
+                    <input class="field sm:w-52" type="search" v-model.trim="channelSearch" placeholder="Search channel" aria-label="Search channel">
+                </div>
+                <p v-if="!stats.channels.length" class="px-4 pt-7 pb-9 text-center text-muted">Nobody is subscribed yet.</p>
+                <p v-else-if="!visibleChannels.length" class="px-4 pt-7 pb-9 text-center text-muted">No channel matches the filter.</p>
+                <div v-else class="scroll-thin max-h-[372px] overflow-auto">
+                    <table class="w-full border-collapse">
+                        <thead><tr><th class="th">Channel</th><th class="th hidden sm:table-cell">Type</th><th class="th text-right">Subscribers</th></tr></thead>
+                        <tbody>
+                            <template v-for="c in visibleChannels">
+                                <tr :key="c.name" class="cursor-pointer hover:bg-inset focus-visible:-outline-offset-2" :class="{ 'bg-inset': openChannel === c.name }" tabindex="0" :aria-expanded="String(openChannel === c.name)"
+                                    @click="toggleChannel(c.name)" @keydown.enter="toggleChannel(c.name)" @keydown.space.prevent="toggleChannel(c.name)">
+                                    <td class="td">
+                                        <div class="font-mono text-[12.5px] [overflow-wrap:anywhere]">{{ c.name }}</div>
+                                        <div class="mt-0.5 text-xs text-ink-2 sm:hidden">{{ typeLabel(c.type) }}<template v-if="c.type === 'presence'"> · {{ plural(c.users, 'user', 'users') }}</template></div>
+                                    </td>
+                                    <td class="td hidden sm:table-cell">
+                                        <span class="inline-flex items-center gap-1.5 text-xs text-ink-2 sm:whitespace-nowrap">
+                                            <svg v-if="c.type === 'public'" class="flex-none text-muted" width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5"/><path d="M1.5 6.5h10M6.5 1.5c2 2 2 8 0 10M6.5 1.5c-2 2-2 8 0 10"/></svg>
+                                            <svg v-else-if="c.type === 'private'" class="flex-none text-muted" width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="8" height="5.5" rx="1.2"/><path d="M4.3 6V4.3a2.2 2.2 0 0 1 4.4 0V6"/></svg>
+                                            <svg v-else class="flex-none text-muted" width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true"><circle cx="4.8" cy="4.5" r="1.9"/><path d="M1.5 11c0-2 1.4-3.2 3.3-3.2S8.1 9 8.1 11M8.6 2.8a1.9 1.9 0 0 1 0 3.5M9.6 8c1.2.4 1.9 1.5 1.9 3"/></svg>
+                                            <span>{{ typeLabel(c.type) }}<template v-if="c.type === 'presence'"> · {{ plural(c.users, 'user', 'users') }}</template></span>
+                                        </span>
+                                    </td>
+                                    <td class="td text-right tabular-nums">
+                                        <span class="flex items-center justify-end gap-2.5">
+                                            <i class="hidden h-1 w-21 overflow-hidden rounded-full bg-series-1/18 sm:block" aria-hidden="true"><b class="block h-full rounded-full bg-series-1" :style="{ width: 100 * c.subscribers / maxSubscribers + '%' }"></b></i>{{ full(c.subscribers) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr v-if="openChannel === c.name" :key="c.name + ':detail'" class="bg-inset">
+                                    <td colspan="3" class="td pt-0.5 pb-3.5">
+                                        <template v-if="c.members && c.members.length">
+                                            <h3 class="label mt-2.5 mb-1.5">Users in the channel</h3>
+                                            <div class="flex flex-wrap gap-1.5"><span v-for="m in c.members" :key="m.id" class="chip">{{ memberName(m) }}</span></div>
+                                        </template>
+                                        <h3 class="label mt-2.5 mb-1.5">Subscribed connections</h3>
+                                        <div v-if="socketsIn(c.name).length" class="flex flex-wrap gap-1.5"><span v-for="s in socketsIn(c.name)" :key="s.id" class="chip font-mono" :title="client(s.agent)">{{ s.id }}</span></div>
+                                        <div v-else class="text-muted">Not among the {{ stats.sockets.length }} most recent connections.</div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+        <!-- Activity -->
+        <section class="mb-3.5">
+            <article class="card rise" style="--i: 8">
+                <div class="flex flex-wrap items-center gap-2.5 px-4 pt-3.5 pb-2.5">
+                    <h2 class="panel-title mr-auto">Activity <small v-if="paused && pending" class="ml-1.5 font-mono text-xs font-normal text-muted">{{ pending }} not shown</small></h2>
+                    <button class="btn order-none sm:order-last" @click="togglePause" :aria-pressed="String(paused)">{{ paused ? 'Resume' : 'Pause' }}</button>
+                    <input class="field sm:w-60" type="search" v-model.trim="feedSearch" placeholder="Filter channel or event" aria-label="Filter activity">
+                </div>
+                <p v-if="!feed.length" class="px-4 pt-7 pb-9 text-center text-muted">No events have been published yet.</p>
+                <p v-else-if="!visibleFeed.length" class="px-4 pt-7 pb-9 text-center text-muted">No event matches the filter.</p>
+                <ul v-else class="scroll-thin m-0 max-h-[372px] list-none overflow-auto p-0">
+                    <li v-for="e in visibleFeed" :key="e.id" class="grid grid-cols-[4.25rem_minmax(0,1fr)] items-baseline gap-x-3 gap-y-0.5 border-b border-grid px-4 py-2 last:border-b-0 sm:grid-cols-[4.25rem_minmax(0,1fr)_auto]" :class="{ fresh: e.id > freshAfter }">
+                        <time class="font-mono text-xs text-muted" :datetime="e.time">{{ clock(e.time) }}</time>
+                        <div class="min-w-0">
+                            <b v-if="e.kind === 'reject'" class="inline-flex items-center gap-1.5 font-mono text-[12.5px] font-medium"><svg class="flex-none text-critical" width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 1.8l5 8.9h-10zM6.5 5.3v2.6M6.5 9.3v.1"/></svg>Rejected: {{ e.event }}</b>
+                            <b v-else class="font-mono text-[12.5px] font-medium [overflow-wrap:anywhere]">{{ e.event }}</b>
+                            <div class="text-xs text-ink-2 [overflow-wrap:anywhere]">{{ e.channel }}</div>
+                        </div>
+                        <div class="col-start-2 text-xs whitespace-nowrap text-ink-2 tabular-nums sm:col-start-3 sm:text-right">
+                            <template v-if="e.kind !== 'reject'">{{ plural(e.receivers, 'receiver', 'receivers') }} · {{ bytes(e.bytes) }}</template>
+                            <span class="tag ml-1.5">{{ e.source }}</span>
+                        </div>
+                    </li>
+                </ul>
+            </article>
+        </section>
+
+        <!-- Connections -->
+        <section class="mb-3.5">
+            <article class="card rise" style="--i: 9">
+                <div class="flex flex-wrap items-center gap-2.5 px-4 pt-3.5 pb-2.5">
+                    <h2 class="panel-title mr-auto">Connections <small class="ml-1.5 font-mono text-xs font-normal text-muted">{{ visibleSockets.length }}</small></h2>
+                    <input class="field sm:w-60" type="search" v-model.trim="socketSearch" placeholder="Search socket, IP or channel" aria-label="Search connection">
+                </div>
+                <p v-if="!stats.sockets.length" class="px-4 pt-7 pb-9 text-center text-muted">No browsers connected.</p>
+                <p v-else-if="!visibleSockets.length" class="px-4 pt-7 pb-9 text-center text-muted">No connection matches the search.</p>
+                <template v-else>
+                    <!-- Wide screens: table -->
+                    <div class="scroll-thin hidden max-h-[372px] overflow-auto md:block">
+                        <table class="w-full border-collapse">
+                            <thead><tr><th class="th">Socket</th><th class="th">Connected</th><th class="th">Client</th><th class="th">Origin</th><th class="th">IP</th><th class="th">Channels</th><th class="th text-right">Sent</th></tr></thead>
+                            <tbody>
+                                <tr v-for="s in visibleSockets" :key="s.id">
+                                    <td class="td font-mono text-[12.5px] whitespace-nowrap">{{ s.id }}</td>
+                                    <td class="td whitespace-nowrap" :title="clock(s.connectedAt)">{{ ago(s.connectedAt) }} ago</td>
+                                    <td class="td whitespace-nowrap" :title="s.agent">{{ client(s.agent) }}</td>
+                                    <td class="td font-mono text-[12.5px] [overflow-wrap:anywhere]">{{ s.origin || '—' }}</td>
+                                    <td class="td font-mono text-[12.5px] whitespace-nowrap">{{ s.remote }}</td>
+                                    <td class="td [overflow-wrap:anywhere]"><span v-if="!s.channels.length" class="text-muted">none</span><span v-else class="font-mono text-[12.5px]">{{ s.channels.join(', ') }}</span></td>
+                                    <td class="td text-right tabular-nums">{{ full(s.sent) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- Phones: one card per connection -->
+                    <ul class="scroll-thin m-0 max-h-[420px] list-none overflow-auto p-0 md:hidden">
+                        <li v-for="s in visibleSockets" :key="s.id" class="border-b border-grid px-4 py-2.5 last:border-b-0">
+                            <div class="flex items-baseline justify-between gap-3">
+                                <span class="font-mono text-[12.5px] font-medium [overflow-wrap:anywhere]">{{ s.id }}</span>
+                                <span class="text-xs whitespace-nowrap text-muted">{{ ago(s.connectedAt) }} ago</span>
+                            </div>
+                            <div class="mt-0.5 text-xs text-ink-2">{{ client(s.agent) }} · <span class="font-mono">{{ s.remote }}</span> · {{ plural(s.sent, 'sent', 'sent') }}</div>
+                            <div class="mt-0.5 text-xs [overflow-wrap:anywhere]"><span v-if="!s.channels.length" class="text-muted">No channels</span><span v-else class="font-mono">{{ s.channels.join(', ') }}</span></div>
+                        </li>
+                    </ul>
+                </template>
+                <div v-if="stats.connections > stats.sockets.length" class="border-t border-grid px-4 py-2 text-xs text-muted">Showing the {{ stats.sockets.length }} most recent connections of {{ full(stats.connections) }}.</div>
+            </article>
+        </section>
+
+        <!-- Quick test -->
+        <details class="card rise group" style="--i: 10">
+            <summary class="flex cursor-pointer list-none items-center gap-2.5 rounded-xl px-4 py-3.5">
+                <svg class="flex-none transition-transform duration-200 group-open:rotate-90" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5"/></svg>
+                <h2 class="panel-title">Quick test</h2>
+                <span class="hidden text-[13px] text-muted sm:inline">Connect this tab to a public channel and publish an event to it</span>
+            </summary>
+            <div class="px-4 pb-4">
+                <div class="mb-3 grid items-end gap-2.5 sm:grid-cols-[1fr_1fr_auto]">
+                    <div><label class="label mb-1.5 block" for="channel">Public channel</label><input id="channel" class="field py-2" type="text" v-model.trim="test.channel" :disabled="test.connected"></div>
+                    <div><label class="label mb-1.5 block" for="text">Message</label><input id="text" class="field py-2" type="text" v-model="test.text" @keyup.enter="sendTest"></div>
+                    <button v-if="!test.connected" class="btn btn-primary" :disabled="!test.channel || !stats.appKey" @click="connectTest">Connect this tab</button>
+                    <button v-else class="btn btn-primary" :disabled="!test.subscribed" @click="sendTest">Publish event</button>
+                </div>
+                <p v-if="!test.received.length" class="m-0 text-muted">{{ test.connected ? (test.subscribed ? 'Subscribed. Publish an event and it will show up here.' : 'Connecting…') : 'It follows the same path as a real browser: handshake, subscription and delivery.' }}</p>
+                <div v-else class="scroll-thin max-h-[220px] overflow-auto">
+                    <table class="w-full border-collapse">
+                        <thead><tr><th class="th">Time</th><th class="th">Event</th><th class="th">Content</th><th class="th text-right">Took</th></tr></thead>
+                        <tbody><tr v-for="(m, i) in test.received" :key="i"><td class="td font-mono text-[12.5px]">{{ clock(m.time) }}</td><td class="td">{{ m.event }}</td><td class="td [overflow-wrap:anywhere]">{{ m.text }}</td><td class="td text-right whitespace-nowrap tabular-nums">{{ m.ms }} ms</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </details>
+    </div>
+</main>
+
+<script src="/lib/vue.min.js"></script>
+<script src="/lib/panel.js"></script>
+</body>
+</html>

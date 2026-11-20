@@ -1,0 +1,13 @@
+{
+  "name": "websockets-server-panel",
+  "private": true,
+  "description": "Panel styles: Tailwind CSS compiled to web/lib/panel.css, which the Go server embeds in the binary",
+  "scripts": {
+    "css": "tailwindcss -i ./tailwind/panel.css -o ./web/lib/panel.css --minify",
+    "css:watch": "tailwindcss -i ./tailwind/panel.css -o ./web/lib/panel.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.5",
+    "tailwindcss": "^4.3.5"
+  }
+}

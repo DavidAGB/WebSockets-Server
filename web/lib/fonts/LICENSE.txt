@@ -1,0 +1,7 @@
+Fonts in this folder
+
+Red Hat Display and Red Hat Text - Copyright Red Hat, Inc.
+Source Code Pro - Copyright Adobe (http://www.adobe.com/), with Reserved Font Name "Source".
+
+Distributed under the SIL Open Font License, version 1.1:
+https://openfontlicense.org/open-font-license-official-text/

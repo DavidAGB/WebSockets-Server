@@ -1,0 +1,16 @@
+# systemd unit. Copy to /etc/systemd/system/ and adjust the paths and the user.
+#   systemctl daemon-reload && systemctl enable --now websockets-server
+[Unit]
+Description=WebSockets Server (Pusher protocol)
+After=network.target
+
+[Service]
+User=www-data
+ExecStart=/opt/websockets-server/websockets-server -addr 127.0.0.1:6001 -env /var/www/app/.env -origins "https://app.example.com"
+Restart=always
+RestartSec=2
+# One open file per connected browser
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
